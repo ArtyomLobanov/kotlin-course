@@ -61,7 +61,11 @@ data class FunctionCall(
     override fun evaluate(context: ExecutionContext): Int {
         val function = context.getFunction(function) ?: throw UnknownIdentifierException(line)
         val arguments = arguments.map { it -> it.evaluate(context) }
-        return function.apply(arguments)
+        try {
+            return function.apply(arguments)
+        } catch (e: WrongArgumentsNumberException) {
+            throw FunctionCallException(line)
+        }
     }
 }
 

@@ -2,14 +2,16 @@ package ru.spbau.mit.ast
 
 sealed class InterpreterException(message: String, val line: Int) : RuntimeException(message)
 
-object WrongArgumentsNumberException
-    : Error("Wrong number of arguments in function call statement")
+object WrongArgumentsNumberException: Exception("Wrong number of arguments in function call statement")
+
+class FunctionCallException(line: Int)
+    : InterpreterException("Wrong number of arguments in function call statement", line)
 
 class UnknownIdentifierException(line: Int)
     : InterpreterException("Unknown identifier", line)
 
-class UnknownASTNodeException(line: Int)
-    : InterpreterException("Internal exception!", line)
+class SyntaxException(line: Int)
+    : InterpreterException("Syntax exception! Failed to parse code!", line)
 
 class ArithmeticException(line: Int)
     : InterpreterException("Forbidden mathematical operation!", line)

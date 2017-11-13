@@ -18,12 +18,9 @@ import javax.swing.JPanel
 fun main(args: Array<String>) {
     if (args.size != 1) {
         print("Exactly one argument expected (path to file)!")
+        return
     }
     try {
-
-        val lexer = FunLanguageLexer(CharStreams.fromFileName(args[0]))
-        val parser = FunLanguageParser(BufferedTokenStream(lexer))
-        parser.buildParseTree = true
         val tree = ASTBuilder.buildAST(CharStreams.fromFileName(args[0]))
         val context = ExecutionContext(null)
         context.defineFunction("println", PrintFunction(System.out))
@@ -35,16 +32,4 @@ fun main(args: Array<String>) {
             print("At line: ${e.line}\n")
         }
     }
-}
-
-fun showTree(tree: ParseTree, parser: Parser) {
-    val frame = JFrame("Antlr AST")
-    val panel = JPanel()
-    val viewer = TreeViewer(parser.ruleNames.asList(), tree)
-    viewer.scale = 1.5
-    panel.add(viewer)
-    frame.add(panel)
-    frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-    frame.setSize(1000, 1000)
-    frame.isVisible = true
 }

@@ -11,7 +11,7 @@ import ru.spbau.mit.parser.FunLanguageParser.*
 
 object ASTBuilder {
 
-    fun buildAST(stream: CharStream) : ASTree {
+    fun buildAST(stream: CharStream): ASTree {
         val lexer = FunLanguageLexer(stream)
         val parser = FunLanguageParser(BufferedTokenStream(lexer))
         return ASTree(visitFile(parser.file()))
@@ -23,7 +23,7 @@ object ASTBuilder {
                 visitPrimitiveExpression(expression.primitiveExpression())
             expression.binaryExpression() !== null ->
                 visitBinaryExpression(expression.binaryExpression())
-            else -> throw UnknownASTNodeException(expression.start.line)
+            else -> throw SyntaxException(expression.start.line)
         }
     }
 
@@ -33,7 +33,7 @@ object ASTBuilder {
             expression.expression() !== null -> visitExpression(expression.expression())
             expression.INTEGER() !== null -> visitLiteral(expression.INTEGER())
             expression.IDENTIFIER() !== null -> visitIdentifier(expression.IDENTIFIER())
-            else -> throw UnknownASTNodeException(expression.start.line)
+            else -> throw SyntaxException(expression.start.line)
         }
     }
 
@@ -54,7 +54,7 @@ object ASTBuilder {
             FunLanguageParser.NOT_EQUAL -> Operator.NotEqual
             FunLanguageParser.LOGICAL_OR -> Operator.Or
             FunLanguageParser.LOGICAL_AND -> Operator.And
-            else -> throw UnknownASTNodeException(expression.start.line)
+            else -> throw SyntaxException(expression.start.line)
         }
         return BinaryExpression(leftValue, rightValue, operator, expression.start.line)
     }
@@ -98,7 +98,7 @@ object ASTBuilder {
                 visitWhileStatement(statement.whileStatement())
             statement.returnStatement() !== null ->
                 visitReturnStatement(statement.returnStatement())
-            else -> throw UnknownASTNodeException(statement.start.line)
+            else -> throw SyntaxException(statement.start.line)
         }
     }
 
