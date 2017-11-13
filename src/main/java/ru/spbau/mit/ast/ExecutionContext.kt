@@ -1,4 +1,4 @@
-package ru.spbau.mit.interpreter
+package ru.spbau.mit.ast
 
 class ExecutionContext(private val parent: ExecutionContext?) {
     private val variables: MutableMap<String, Int> = HashMap()
@@ -6,27 +6,32 @@ class ExecutionContext(private val parent: ExecutionContext?) {
     private var resultCode = 0
     private var isInterrupted = false
 
-    fun defineFunction(name: String, function: Function) {
-        if (functions.containsKey(name)) {
-            throw RuntimeException()
+    fun defineFunction(name: String, function: Function): Boolean {
+        if (!functions.containsKey(name)) {
+            functions[name] = function
+            return true
         }
-        functions[name] = function
+        return false
     }
 
-    fun defineVariable(name: String, value: Int) {
-        if (variables.containsKey(name)) {
-            throw RuntimeException()
+    fun defineVariable(name: String, value: Int): Boolean {
+        if (!variables.containsKey(name)) {
+            variables[name] = value
+            return true
         }
-        variables[name] = value
+        return false
     }
 
     fun getFunction(name: String): Function? = functions[name] ?: parent?.getFunction(name)
     fun getVariable(name: String): Int? = variables[name] ?: parent?.getVariable(name)
 
-    fun setVariable(name: String, value: Int): Int? {
+    fun setVariable(name: String, value: Int): Boolean {
         return when {
-            variables.containsKey(name) -> variables.replace(name, value)
-            else -> parent?.setVariable(name, value)
+            variables.containsKey(name) -> {
+                variables[name] = value
+                return true
+            }
+            else -> parent?.setVariable(name, value) ?: false
         }
     }
 
