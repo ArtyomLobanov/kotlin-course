@@ -21,8 +21,8 @@ object ASTBuilder {
         return when {
             expression.primitiveExpression() !== null ->
                 visitPrimitiveExpression(expression.primitiveExpression())
-            expression.binaryExpression() !== null ->
-                visitBinaryExpression(expression.binaryExpression())
+            expression.op !== null ->
+                visitBinaryExpression(expression)
             else -> throw SyntaxException(expression.start.line)
         }
     }
@@ -37,9 +37,9 @@ object ASTBuilder {
         }
     }
 
-    fun visitBinaryExpression(expression: BinaryExpressionContext): BinaryExpression {
-        val leftValue = visitPrimitiveExpression(expression.primitiveExpression())
-        val rightValue = visitExpression(expression.expression())
+    fun visitBinaryExpression(expression: ExpressionContext): BinaryExpression {
+        val leftValue = visitExpression(expression.expression(0))
+        val rightValue = visitExpression(expression.expression(1))
         val operator = when (expression.op.type) {
             FunLanguageParser.MULTIPLY -> Operator.Multiply
             FunLanguageParser.DIVIDE -> Operator.Divide
@@ -132,7 +132,10 @@ object ASTBuilder {
 
     fun visitVariableDeclaration(declaration: VariableDeclarationContext): VariableDeclaration {
         val name = declaration.IDENTIFIER().symbol.text
-        val expression = visitExpression(declaration.expression())
+        val expression = when (declaration.expression()) {
+            null -> null
+            else -> visitExpression(declaration.expression())
+        }
         return VariableDeclaration(name, expression, declaration.start.line)
     }
 

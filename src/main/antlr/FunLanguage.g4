@@ -26,17 +26,13 @@ arguments : (expression (',' expression)*)?;
 
 
 expression
-    : binaryExpression
+    : expression op = (MULTIPLY | DIVIDE | REMAINDER) expression
+    | expression op = (PLUS | MINUS) expression
+    | expression op = (GREATER | LESS | GREATER_OR_EQUAL | LESS_OR_EQUAL) expression
+    | expression op = (EQUAL | NOT_EQUAL) expression
+    | expression op = LOGICAL_AND expression
+    | expression op = LOGICAL_OR expression
     | primitiveExpression
-    ;
-
-binaryExpression
-    : primitiveExpression op = (MULTIPLY | DIVIDE | REMAINDER) expression
-    | primitiveExpression op = (PLUS | MINUS) expression
-    | primitiveExpression op = (GREATER | LESS | GREATER_OR_EQUAL | LESS_OR_EQUAL) expression
-    | primitiveExpression op = (EQUAL | NOT_EQUAL) expression
-    | primitiveExpression op = LOGICAL_AND expression
-    | primitiveExpression op = LOGICAL_OR expression
     ;
 
 primitiveExpression
@@ -61,7 +57,7 @@ NOT_EQUAL : '!=';
 LOGICAL_OR : '||';
 LOGICAL_AND : '&&';
 INTEGER : '0'
-        | ('-'?[1-9][0-9]*);
+        | ([1-9][0-9]*);
 
 IDENTIFIER : ([a-zA-Z_][a-zA-Z_0-9]*);
 COMMENT : '//' ~[\r\n]* -> skip;
