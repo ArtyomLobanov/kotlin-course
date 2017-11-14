@@ -1,5 +1,3 @@
-package ru.spbau.mit.lobanov
-
 import java.lang.Math.abs
 
 /**
