@@ -1,3 +1,7 @@
+package ru.spbau.mit.lobanov
+
+import java.lang.Math.abs
+
 /**
  * Represents quarters of plane R^2
  *
@@ -33,12 +37,12 @@ data class Rational(
         if (signum != other.signum) {
             return signum - other.signum
         }
-        val difference = Math.abs(numerator * other.denominator) - Math.abs(other.numerator * denominator)
+        val difference = abs(numerator * other.denominator) - abs(other.numerator * denominator)
         return signum * signum(difference)
     }
 
     override fun equals(other: Any?): Boolean {
-        return if (other === null || other !is Rational) false else compareTo(other) == 0
+        return if (other !is Rational) false else compareTo(other) == 0
     }
 
     override fun hashCode(): Int {
@@ -82,7 +86,7 @@ data class Vector2D(private val x: Long, private val y: Long) {
  * @constructor Creates angle between the radius vector to point (x, y) and the X-axis when
  *      traversing counter-clockwise
  */
-class Angle constructor(x: Long, y: Long) :
+class Angle(x: Long, y: Long) :
         Comparable<Angle> {
     private val tg = Rational(y, x)
     private val ctg = Rational(x, y)
@@ -91,7 +95,7 @@ class Angle constructor(x: Long, y: Long) :
     override fun compareTo(other: Angle): Int = when {
         quarter != other.quarter -> quarter.compareTo(other.quarter)
         quarter.tgFinite -> tg.compareTo(other.tg)
-        else -> -ctg.compareTo(other.ctg)
+        else -> -ctg.compareTo(other.ctg) // cotangent is a decreasing function
     }
 
     override fun equals(other: Any?): Boolean {
@@ -155,7 +159,7 @@ fun <E> shiftedList(list: List<E>): List<E> =
  * @return pair of indexes of vectors in given list
  */
 fun solve(vectors: List<Vector2D>): Pair<Int, Int>? {
-    val sortedList = vectors.sortedWith(Comparator { x, y -> x.angle.compareTo(y.angle) })
+    val sortedList = vectors.sortedBy { it.angle }
     val result = sortedList.zip(shiftedList(sortedList))
             .minBy { (x, y) -> Angle.between(x, y) }
     return when (result) {
@@ -171,9 +175,6 @@ fun main(args: Array<String>) {
         val (x, y) = readLine()!!.split(' ').map(String::toLong)
         vectors.add(Vector2D(x, y))
     }
-    val result = solve(vectors)
-    when (result) {
-        null -> throw IllegalArgumentException("Wrong input: n < 2")
-        else -> print("${result.first} ${result.second}")
-    }
+    val result = solve(vectors) ?: throw IllegalArgumentException("Wrong input: n < 2")
+    print("${result.first} ${result.second}")
 }
