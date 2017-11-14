@@ -1,5 +1,3 @@
-package ru.spbau.mit.lobanov
-
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
