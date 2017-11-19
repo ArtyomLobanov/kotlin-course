@@ -1,6 +1,7 @@
 package ru.spbau.mit.lobanov
 
 import ru.spbau.mit.lobanov.KeyWord.*
+import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 
 enum class KeyWord(val text: String) {
@@ -14,7 +15,7 @@ enum class KeyWord(val text: String) {
     ITEMIZE("itemize"),
     FRAME("frame"),
     MATH("\\math"),
-    NEW_LINE("\\newline")
+    NEW_LINE("~\\\\")
 }
 
 enum class Alignment(val text: String) {
@@ -34,20 +35,11 @@ class TexContext(private val output: PrintStream) {
         }
     }
 
-    private fun extrasToString(vararg extras: Any): List<String> = extras.map {
+    private fun extrasToString(extras: Array<out Any>): List<String> = extras.map {
         when (it) {
             is Pair<*, *> -> "${it.first}=${it.second}"
-            else -> extras.toString()
+            else -> it.toString()
         }
-    }
-
-    private fun write(text: String) = output.println(text)
-
-    private fun writeSingleLineCommand(
-            name: String,
-            argument: String,
-            extras: List<String>) {
-        write("$name${extras.joinToString("[", "]")}{$argument}")
     }
 
     private fun <T : TexElement> writeElement(element: T, writeBody: T.() -> Unit) {
@@ -63,6 +55,15 @@ class TexContext(private val output: PrintStream) {
 
     @TexMarker
     inner abstract class TexElement {
+        protected fun write(text: String) = output.println(text)
+
+        protected fun writeSingleLineCommand(
+                name: String,
+                argument: String,
+                extras: List<String>) {
+            write("$name${extras.joinToString("[", "]")}{$argument}")
+        }
+
         open fun writeHeader() {}
         open fun writeFooter() {}
     }
@@ -96,7 +97,7 @@ class TexContext(private val output: PrintStream) {
         fun math(formula: String, vararg extras: Any) =
                 writeSingleLineCommand(MATH.text, formula, extrasToString(extras))
 
-        fun block(tag: String, vararg extras: Any, writeBody: Block.() -> Unit) =
+        fun block(tag: String, writeBody: Block.() -> Unit) =
                 writeElement(Block(tag), writeBody)
 
         fun command(name: String, argument: String, vararg extras: Any) =
@@ -121,7 +122,10 @@ class TexContext(private val output: PrintStream) {
         }
     }
 
-    inner class Document() : Block(DOCUMENT.text) {
+    inner class Document : Block(DOCUMENT.text) {
+        private var initialized = false
+
+
         fun usepackage(packageName: String, vararg extras: Any) =
                 writeSingleLineCommand(USE_PACKAGE.text, packageName, extrasToString(extras))
 
@@ -140,23 +144,18 @@ class TexBuilder(private val documentBody: TexContext.Document.() -> Unit) {
     fun toPrintStream(output: PrintStream) {
         TexContext(output).write(documentBody)
     }
+
+    override fun toString(): String {
+        val baos = ByteArrayOutputStream()
+        val output = PrintStream(baos)
+        toPrintStream(output)
+        output.close()
+        return baos.toString()
+    }
 }
 
 fun document(documentBody: TexContext.Document.() -> Unit) = TexBuilder(documentBody)
 
-fun main(args: Array<String>) {
-    document {
-        itemize {
-            item("Peint")
-            item {
-                math("3+4=1")
-                newline()
-                math("3+3=9")
-                +"ghbdtn"
-            }
-        }
-    }.toPrintStream(System.out)
-}
 
 
 
