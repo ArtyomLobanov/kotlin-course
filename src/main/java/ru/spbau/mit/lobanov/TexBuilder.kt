@@ -123,8 +123,10 @@ class TexContext(private val output: PrintStream) {
     }
 
     inner class Document : Block(DOCUMENT.text) {
-        private var initialized = false
+        fun frame(writeBody: Block.() -> Unit) = writeElement(Block(FRAME.text), writeBody)
+    }
 
+    inner class TexFile : TexElement() {
 
         fun usepackage(packageName: String, vararg extras: Any) =
                 writeSingleLineCommand(USE_PACKAGE.text, packageName, extrasToString(extras))
@@ -132,17 +134,21 @@ class TexContext(private val output: PrintStream) {
         fun documentclass(documentClass: String, vararg extras: Any) =
                 writeSingleLineCommand(DOCUMENT_CLASS.text, documentClass, extrasToString(extras))
 
-        fun frame(writeBody: Block.() -> Unit) = writeElement(Block(FRAME.text), writeBody)
+        fun document(body: Document.() -> Unit) =
+                writeElement(Document(), body)
+
+        fun command(name: String, argument: String, vararg extras: Any) =
+                writeSingleLineCommand("\\$name", argument, extrasToString(extras))
     }
 
-    fun write(documentBody: Document.() -> Unit) {
-        writeElement(Document(), documentBody)
+    fun write(body: TexFile.() -> Unit) {
+        writeElement(TexFile(), body)
     }
 }
 
-class TexBuilder(private val documentBody: TexContext.Document.() -> Unit) {
+class TexBuilder(private val texStructure: TexContext.TexFile.() -> Unit) {
     fun toPrintStream(output: PrintStream) {
-        TexContext(output).write(documentBody)
+        TexContext(output).write(texStructure)
     }
 
     override fun toString(): String {
@@ -154,7 +160,7 @@ class TexBuilder(private val documentBody: TexContext.Document.() -> Unit) {
     }
 }
 
-fun document(documentBody: TexContext.Document.() -> Unit) = TexBuilder(documentBody)
+fun tex(texFile: TexContext.TexFile.() -> Unit) = TexBuilder(texFile)
 
 
 
