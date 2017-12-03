@@ -13,10 +13,10 @@ class RuntimeFunction(
 
     override fun apply(arguments: List<Int>): Int {
         if (arguments.size != argumentNames.size) {
-            throw WrongArgumentsNumberException
+            throw WrongArgumentsNumberException()
         }
         val localContext = ExecutionContext(globalContext)
-        argumentNames.zip(arguments, { name, value -> 
+        argumentNames.zip(arguments, { name, value ->
             localContext.defineVariable(name, value)
         })
         functionBody.evaluate(localContext)
