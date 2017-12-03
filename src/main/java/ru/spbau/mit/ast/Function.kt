@@ -16,9 +16,9 @@ class RuntimeFunction(
             throw WrongArgumentsNumberException
         }
         val localContext = ExecutionContext(globalContext)
-        argumentNames.zip(arguments).forEach { (name, value) ->
+        argumentNames.zip(arguments, { name, value ->
             localContext.defineVariable(name, value)
-        }
+        })
         functionBody.evaluate(localContext)
         return localContext.getResult()
     }
