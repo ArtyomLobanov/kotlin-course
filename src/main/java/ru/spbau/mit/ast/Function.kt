@@ -16,7 +16,7 @@ class RuntimeFunction(
             throw WrongArgumentsNumberException
         }
         val localContext = ExecutionContext(globalContext)
-        argumentNames.zip(arguments, { name, value ->
+        argumentNames.zip(arguments, { name, value -> 
             localContext.defineVariable(name, value)
         })
         functionBody.evaluate(localContext)
@@ -26,7 +26,7 @@ class RuntimeFunction(
 
 data class PrintFunction(private val out: PrintStream) : Function {
     override fun apply(arguments: List<Int>): Int {
-        arguments.forEach({ it -> out.print("$it ") })
+        arguments.forEach{ it: Int -> out.print("$it ") }
         out.println()
         return 0
     }
