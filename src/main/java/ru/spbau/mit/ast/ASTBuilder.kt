@@ -4,43 +4,107 @@ package ru.spbau.mit.ast
 
 import org.antlr.v4.runtime.BufferedTokenStream
 import org.antlr.v4.runtime.CharStream
+import org.antlr.v4.runtime.tree.ErrorNode
+import org.antlr.v4.runtime.tree.ParseTree
+import org.antlr.v4.runtime.tree.RuleNode
 import org.antlr.v4.runtime.tree.TerminalNode
 import ru.spbau.mit.parser.FunLanguageLexer
 import ru.spbau.mit.parser.FunLanguageParser
 import ru.spbau.mit.parser.FunLanguageParser.*
+import ru.spbau.mit.parser.FunLanguageVisitor
 
-object ASTBuilder {
+object ASTBuilder : FunLanguageVisitor<ASTNode> {
 
     fun buildAST(stream: CharStream): ASTree {
         val lexer = FunLanguageLexer(stream)
         val parser = FunLanguageParser(BufferedTokenStream(lexer))
-        return ASTree(visitFile(parser.file()))
+        return ASTree(parser.file().accept(this) as File)
     }
 
-    fun visitExpression(expression: ExpressionContext): Expression {
-        return when {
-            expression.primitiveExpression() !== null ->
-                visitPrimitiveExpression(expression.primitiveExpression())
-            expression.op !== null ->
-                visitBinaryExpression(expression)
-            else -> throw SyntaxException(expression.start.line)
+
+    override fun visitFile(ctx: FileContext): File {
+        if (ctx.block() === null) {
+            throw SyntaxException(ctx.start.line)
         }
+        return File(ctx.block().accept(this) as Block, ctx.start.line)
     }
 
-    fun visitPrimitiveExpression(expression: PrimitiveExpressionContext): Expression {
-        return when {
-            expression.functionCall() !== null -> visitFunctionCall(expression.functionCall())
-            expression.expression() !== null -> visitExpression(expression.expression())
-            expression.INTEGER() !== null -> visitLiteral(expression.INTEGER())
-            expression.IDENTIFIER() !== null -> visitIdentifier(expression.IDENTIFIER())
-            else -> throw SyntaxException(expression.start.line)
+    override fun visitBlock(ctx: BlockContext): Block {
+        val statements = ctx.statement().map { it.accept(this) as Statement }
+        println("sz = " + statements.size)
+        return Block(statements, ctx.start.line)
+    }
+
+    override fun visitBlockWithBraces(ctx: BlockWithBracesContext): Block {
+        return ctx.block().accept(this) as Block
+    }
+
+    override fun visitStatement(ctx: StatementContext): Statement {
+        if (ctx.childCount != 1) {
+            throw SyntaxException(ctx.start.line)
         }
+        return ctx.children.first().accept(this) as Statement
     }
 
-    fun visitBinaryExpression(expression: ExpressionContext): BinaryExpression {
-        val leftValue = visitExpression(expression.expression(0))
-        val rightValue = visitExpression(expression.expression(1))
-        val operator = when (expression.op.type) {
+    override fun visitFunctionDefinition(ctx: FunctionDefinitionContext): FunctionDefinition {
+        val name = ctx.IDENTIFIER().symbol.text
+        val argumentsNames = ctx.parameterNames().IDENTIFIER()
+                .map { it -> it.symbol.text }
+                .toList()
+        val body = ctx.blockWithBraces().block().accept(this) as Block
+        return FunctionDefinition(name, body, argumentsNames, ctx.start.line)
+    }
+
+    override fun visitVariableDeclaration(ctx: VariableDeclarationContext): VariableDeclaration {
+        val name = ctx.IDENTIFIER().symbol.text
+        val expression = ctx.expression()?.accept(this) as Expression?
+        return VariableDeclaration(name, expression, ctx.start.line)
+    }
+
+    override fun visitWhileStatement(ctx: WhileStatementContext): WhileStatement {
+        val condition = ctx.expression().accept(this) as Expression
+        val body = ctx.blockWithBraces().accept(this) as Block
+        return WhileStatement(condition, body, ctx.start.line)
+    }
+
+    override fun visitIfStatement(ctx: IfStatementContext): IfStatement {
+        val condition = ctx.expression().accept(this) as Expression
+        val body = ctx.blockWithBraces(0).accept(this) as Block
+        val elseBody = ctx.blockWithBraces(1)?.block()?.accept(this) as Block?
+        return IfStatement(condition, body, elseBody, ctx.start.line)
+    }
+
+    override fun visitAssignmentStatement(ctx: AssignmentStatementContext): AssignmentStatement {
+        val name = ctx.IDENTIFIER().symbol.text
+        val expression = ctx.expression().accept(this) as Expression
+        return AssignmentStatement(name, expression, ctx.start.line)
+    }
+
+    override fun visit(tree: ParseTree): File {
+        if (tree.childCount != 1) {
+            throw SyntaxException(0)
+        }
+        return tree.getChild(0).accept(this) as File
+    }
+
+    override fun visitReturnStatement(ctx: ReturnStatementContext): ReturnStatement {
+        val expression = ctx.expression().accept(this) as Expression
+        return ReturnStatement(expression, ctx.start.line)
+    }
+
+    override fun visitFunctionCall(ctx: FunctionCallContext): FunctionCall {
+        val name = ctx.IDENTIFIER().symbol.text
+        val arguments = ctx.arguments().expression().map { it.accept(this) as Expression }
+        return FunctionCall(name, arguments, ctx.start.line)
+    }
+
+    override fun visitExpression(ctx: ExpressionContext): Expression {
+        if (ctx.primitiveExpression() !== null) {
+            return ctx.primitiveExpression().accept(this) as Expression
+        }
+        val leftValue = ctx.expression(0).accept(this) as Expression
+        val rightValue = ctx.expression(1).accept(this) as Expression
+        val operator = when (ctx.op.type) {
             FunLanguageParser.MULTIPLY -> Operator.Multiply
             FunLanguageParser.DIVIDE -> Operator.Divide
             FunLanguageParser.REMAINDER -> Operator.Remainder
@@ -54,97 +118,43 @@ object ASTBuilder {
             FunLanguageParser.NOT_EQUAL -> Operator.NotEqual
             FunLanguageParser.LOGICAL_OR -> Operator.Or
             FunLanguageParser.LOGICAL_AND -> Operator.And
-            else -> throw SyntaxException(expression.start.line)
+            else -> throw SyntaxException(ctx.start.line)
         }
-        return BinaryExpression(leftValue, rightValue, operator, expression.start.line)
+        return BinaryExpression(leftValue, rightValue, operator, ctx.start.line)
     }
 
-    fun visitLiteral(literal: TerminalNode): Literal {
-        return Literal(literal.symbol.text.toInt(), literal.symbol.line)
-    }
-
-    fun visitIdentifier(identifier: TerminalNode): Identifier =
-            Identifier(identifier.symbol.text, identifier.symbol.line)
-
-    fun visitFunctionCall(callStatement: FunctionCallContext): FunctionCall {
-        val name = callStatement.IDENTIFIER().symbol.text
-        val arguments = callStatement.arguments().expression()
-                .map(this::visitExpression)
-        return FunctionCall(name, arguments, callStatement.start.line)
-    }
-
-    fun visitFile(file: FileContext): File {
-        return File(visitBlock(file.block()), file.start.line)
-    }
-
-    fun visitBlock(block: BlockContext): Block {
-        val statements = block.statement().map(this::visitStatement)
-        return Block(statements, block.start.line)
-    }
-
-    fun visitStatement(statement: StatementContext): Statement {
+    override fun visitPrimitiveExpression(ctx: PrimitiveExpressionContext): Expression {
         return when {
-            statement.assignmentStatement() !== null ->
-                visitAssignmentStatement(statement.assignmentStatement())
-            statement.expression() !== null ->
-                visitExpression(statement.expression())
-            statement.functionDefinition() !== null ->
-                visitFunctionDefinition(statement.functionDefinition())
-            statement.ifStatement() !== null ->
-                visitIfStatement(statement.ifStatement())
-            statement.variableDeclaration() !== null ->
-                visitVariableDeclaration(statement.variableDeclaration())
-            statement.whileStatement() !== null ->
-                visitWhileStatement(statement.whileStatement())
-            statement.returnStatement() !== null ->
-                visitReturnStatement(statement.returnStatement())
-            else -> throw SyntaxException(statement.start.line)
+            ctx.childCount == 1 -> ctx.children.first().accept(this) as Expression
+            ctx.childCount == 3 -> ctx.expression().accept(this) as Expression
+            else -> throw SyntaxException(ctx.start.line)
         }
     }
 
-    fun visitReturnStatement(statement: ReturnStatementContext): ReturnStatement {
-        val expression = visitExpression(statement.expression())
-        return ReturnStatement(expression, statement.start.line)
-    }
-
-    fun visitAssignmentStatement(assignment: AssignmentStatementContext): AssignmentStatement {
-        val name = assignment.IDENTIFIER().symbol.text
-        val expression = visitExpression(assignment.expression())
-        return AssignmentStatement(name, expression, assignment.start.line)
-    }
-
-    fun visitIfStatement(statement: IfStatementContext): IfStatement {
-        val condition = visitExpression(statement.expression())
-        val body = visitBlock(statement.blockWithBraces(0).block())
-        val elseBody = when (statement.blockWithBraces(1)?.block()) {
-            null -> null
-            else -> visitBlock(statement.blockWithBraces(1).block())
+    override fun visitTerminal(node: TerminalNode): ASTNode {
+        val text = node.symbol.text
+        return if (text[0].isDigit()) {
+            Literal(text.toInt(), node.symbol.line)
+        } else {
+            Identifier(text, node.symbol.line)
         }
-        return IfStatement(condition, body, elseBody, statement.start.line)
     }
 
-    fun visitWhileStatement(loop: WhileStatementContext): WhileStatement {
-        val condition = visitExpression(loop.expression())
-        val body = visitBlock(loop.blockWithBraces().block())
-        return WhileStatement(condition, body, loop.start.line)
+    // should be never called (parse arguments in visitFunctionCall)
+    override fun visitArguments(ctx: ArgumentsContext): ASTNode? {
+        throw SyntaxException(ctx.start.line)
     }
 
-
-    fun visitVariableDeclaration(declaration: VariableDeclarationContext): VariableDeclaration {
-        val name = declaration.IDENTIFIER().symbol.text
-        val expression = when (declaration.expression()) {
-            null -> null
-            else -> visitExpression(declaration.expression())
-        }
-        return VariableDeclaration(name, expression, declaration.start.line)
+    // should be never called (parse parameter names in visitFunctionDefinition)
+    override fun visitParameterNames(ctx: ParameterNamesContext): ASTNode {
+        throw SyntaxException(ctx.start.line)
     }
 
-    fun visitFunctionDefinition(definition: FunctionDefinitionContext): FunctionDefinition {
-        val name = definition.IDENTIFIER().symbol.text
-        val argumentsNames = definition.parameterNames().IDENTIFIER()
-                .map { it -> it.symbol.text }
-                .toList()
-        val body = visitBlock(definition.blockWithBraces().block())
-        return FunctionDefinition(name, body, argumentsNames, definition.start.line)
+    override fun visitErrorNode(node: ErrorNode): ASTNode? {
+        throw SyntaxException(node.symbol.line)
+    }
+
+    override fun visitChildren(node: RuleNode): ASTNode? {
+        throw SyntaxException(node.sourceInterval.a)
     }
 }
