@@ -19,7 +19,7 @@ class RuntimeFunction(
         argumentNames.zip(arguments, { name, value ->
             localContext.defineVariable(name, value)
         })
-        functionBody.evaluate(localContext)
+        functionBody.visit(Executor(localContext))
         return localContext.getResult()
     }
 }

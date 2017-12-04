@@ -31,7 +31,6 @@ object ASTBuilder : FunLanguageVisitor<ASTNode> {
 
     override fun visitBlock(ctx: BlockContext): Block {
         val statements = ctx.statement().map { it.accept(this) as Statement }
-        println("sz = " + statements.size)
         return Block(statements, ctx.start.line)
     }
 

@@ -2,15 +2,30 @@
 
 package ru.spbau.mit.ast
 
+interface ASTreeVisitor<T> {
+    fun visitFile(file: File): T
+    fun visitBlock(block: Block): T
+    fun visitLiteral(literal: Literal): T
+    fun visitIdentifier(identifier: Identifier): T
+    fun visitIfStatement(ifStatement: IfStatement): T
+    fun visitFunctionCall(functionCall: FunctionCall): T
+    fun visitWhileStatement(whileStatement: WhileStatement): T
+    fun visitReturnStatement(returnStatement: ReturnStatement): T
+    fun visitBinaryExpression(binaryExpression: BinaryExpression): T
+    fun visitFunctionDefinition(functionDefinition: FunctionDefinition): T
+    fun visitAssignmentStatement(assignmentStatement: AssignmentStatement): T
+    fun visitVariableDeclaration(variableDeclaration: VariableDeclaration): T
+}
+
 data class ASTree(val root: File) {
     fun evaluate(context: ExecutionContext) {
-        root.evaluate(context)
+        root.visit(Executor(context))
     }
 }
 
-sealed class ASTNode() {
+sealed class ASTNode {
     abstract val line: Int
-    abstract fun evaluate(context: ExecutionContext): Int?
+    abstract fun <T> visit(visitor: ASTreeVisitor<T>): T
 }
 
 sealed class Statement : ASTNode()
@@ -18,39 +33,24 @@ sealed class Statement : ASTNode()
 data class Block(
         val statements: List<Statement>,
         override val line: Int) : ASTNode() {
-    override fun evaluate(context: ExecutionContext): Int? {
-        val localContext = ExecutionContext(context)
-        for (statement in statements) {
-            statement.evaluate(localContext)
-            if (localContext.isInterrupted()) {
-                context.interrupt(localContext.getResult())
-                break
-            }
-        }
-        return null
-    }
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitBlock(this)
 }
 
 data class File(val block: Block, override val line: Int) : ASTNode() {
-    override fun evaluate(context: ExecutionContext) = block.evaluate(context)
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitFile(this)
 }
 
-sealed class Expression : Statement() {
-    override abstract fun evaluate(context: ExecutionContext): Int
-}
+sealed class Expression : Statement()
 
 
 sealed class PrimitiveExpression : Expression()
 
 data class Literal(val value: Int, override val line: Int) : PrimitiveExpression() {
-    override fun evaluate(context: ExecutionContext) = value
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitLiteral(this)
 }
 
 data class Identifier(val name: String, override val line: Int) : PrimitiveExpression() {
-    override fun evaluate(context: ExecutionContext) : Int {
-        return context.getVariable(name) ?: throw UnknownIdentifierException(line)
-    }
-
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitIdentifier(this)
 }
 
 data class FunctionCall(
@@ -58,15 +58,7 @@ data class FunctionCall(
         val arguments: List<Expression>,
         override val line: Int) : PrimitiveExpression() {
 
-    override fun evaluate(context: ExecutionContext): Int {
-        val function = context.getFunction(function) ?: throw UnknownIdentifierException(line)
-        val arguments = arguments.map { it -> it.evaluate(context) }
-        try {
-            return function.apply(arguments)
-        } catch (e: WrongArgumentsNumberException) {
-            throw FunctionCallException(line)
-        }
-    }
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitFunctionCall(this)
 }
 
 data class BinaryExpression(
@@ -74,15 +66,7 @@ data class BinaryExpression(
         val right: Expression,
         val operator: Operator,
         override val line: Int) : Expression() {
-    override fun evaluate(context: ExecutionContext): Int {
-        val leftValue = left.evaluate(context)
-        val rightValue = right.evaluate(context)
-        try {
-            return operator.calculator(leftValue, rightValue)
-        } catch (e: Exception) {
-            throw ArithmeticException(line)
-        }
-    }
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitBinaryExpression(this)
 }
 
 data class FunctionDefinition(
@@ -90,38 +74,21 @@ data class FunctionDefinition(
         val body: Block,
         val arguments: List<String>,
         override val line: Int) : Statement() {
-    override fun evaluate(context: ExecutionContext): Int? {
-        val function = RuntimeFunction(context, body, arguments)
-        if (!context.defineFunction(name, function)) {
-            throw RedefinitionException(line)
-        }
-        return null
-    }
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitFunctionDefinition(this)
 }
 
 data class VariableDeclaration(
         val name: String,
         val expression: Expression?,
         override val line: Int) : Statement() {
-    override fun evaluate(context: ExecutionContext): Int? {
-        val value = expression?.evaluate(context) ?: 0
-        if (!context.defineVariable(name, value)) {
-            throw RedefinitionException(line)
-        }
-        return null
-    }
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitVariableDeclaration(this)
 }
 
 data class WhileStatement(
         val condition: Expression,
         val body: Block,
         override val line: Int) : Statement() {
-    override fun evaluate(context: ExecutionContext): Int? {
-        while (condition.evaluate(context) != 0 && !context.isInterrupted()) {
-            body.evaluate(context)
-        }
-        return null
-    }
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitWhileStatement(this)
 }
 
 data class IfStatement(
@@ -129,31 +96,18 @@ data class IfStatement(
         val body: Block,
         val elseBody: Block?,
         override val line: Int) : Statement() {
-    override fun evaluate(context: ExecutionContext): Int? {
-        if (condition.evaluate(context) != 0) {
-            body.evaluate(context)
-        } else {
-            elseBody?.evaluate(context)
-        }
-        return null
-    }
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitIfStatement(this)
 }
 
 data class AssignmentStatement(
         val name: String,
         val expression: Expression,
         override val line: Int) : Statement() {
-    override fun evaluate(context: ExecutionContext): Int? {
-        context.setVariable(name, expression.evaluate(context))
-        return null
-    }
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitAssignmentStatement(this)
 }
 
 data class ReturnStatement(
         val expression: Expression,
         override val line: Int) : Statement() {
-    override fun evaluate(context: ExecutionContext): Int? {
-        context.interrupt(expression.evaluate(context))
-        return null
-    }
+    override fun <T> visit(visitor: ASTreeVisitor<T>) = visitor.visitReturnStatement(this)
 }
