@@ -26,7 +26,7 @@ class RuntimeFunction(
 
 data class PrintFunction(private val out: PrintStream) : Function {
     override fun apply(arguments: List<Int>): Int {
-        arguments.forEach{ it: Int -> out.print("$it ") }
+        arguments.forEach { it: Int -> out.print("$it ") }
         out.println()
         return 0
     }

@@ -2,7 +2,7 @@ package ru.spbau.mit.ast
 
 sealed class InterpreterException(message: String, val line: Int) : RuntimeException(message)
 
-class WrongArgumentsNumberException: Exception("Wrong number of arguments in function call statement")
+class WrongArgumentsNumberException : Exception("Wrong number of arguments in function call statement")
 
 class FunctionCallException(line: Int)
     : InterpreterException("Wrong number of arguments in function call statement", line)

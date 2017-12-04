@@ -47,8 +47,8 @@ class FullTests {
     fun test4() {
         val tree = ASTBuilder.buildAST(CharStreams.fromString(
                 "var n = 24\n" +
-                "var t = 1\n" +
-                "var cnt\n" +
+                        "var t = 1\n" +
+                        "var cnt\n" +
                         "while(t <= n){\n" +
                         "   if (n % t == 0) {\n" +
                         "       cnt = cnt + 1\n" +

@@ -33,7 +33,7 @@ class Executor(private val context: ExecutionContext) : ASTreeVisitor<Int?> {
 
     override fun visitFunctionCall(functionCall: FunctionCall): Int {
         val function = context.getFunction(functionCall.function) ?: throw UnknownIdentifierException(functionCall.line)
-        val arguments = functionCall.arguments.map { it -> it.visit(this) as Int}
+        val arguments = functionCall.arguments.map { it -> it.visit(this) as Int }
         try {
             return function.apply(arguments)
         } catch (e: WrongArgumentsNumberException) {
@@ -83,5 +83,4 @@ class Executor(private val context: ExecutionContext) : ASTreeVisitor<Int?> {
         }
         return null
     }
-
 }
