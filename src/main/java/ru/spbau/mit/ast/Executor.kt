@@ -1,18 +1,21 @@
 package ru.spbau.mit.ast
 
-class Executor(private val context: ExecutionContext) : ASTreeVisitor<Int?> {
+class Executor(private var context: ExecutionContext) : ASTreeVisitor<Int?> {
+
     override fun visitFile(file: File): Int? = file.block.visit(this)
 
     override fun visitBlock(block: Block): Int? {
-        val localContext = ExecutionContext(context)
-        val localExecutor = Executor(localContext)
+        context = ExecutionContext(context)
         for (statement in block.statements) {
-            statement.visit(localExecutor)
-            if (localContext.isInterrupted()) {
-                context.interrupt(localContext.getResult())
-                break
+            statement.visit(this)
+            if (context.isInterrupted()) {
+                val result = context.getResult()
+                context = context.parent as ExecutionContext
+                context.interrupt(result)
+                return null
             }
         }
+        context = context.parent as ExecutionContext
         return null
     }
 

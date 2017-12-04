@@ -1,6 +1,6 @@
 package ru.spbau.mit.ast
 
-class ExecutionContext(private val parent: ExecutionContext?) {
+class ExecutionContext(val parent: ExecutionContext?) {
     private val variables: MutableMap<String, Int> = HashMap()
     private val functions: MutableMap<String, Function> = HashMap()
     private var resultCode = 0
