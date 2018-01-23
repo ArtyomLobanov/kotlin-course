@@ -1,5 +1,6 @@
 package ru.spbau.mit
 
+import kotlinx.coroutines.experimental.runBlocking
 import org.antlr.v4.runtime.CharStreams
 import org.junit.Test
 import ru.spbau.mit.ast.ASTBuilder
@@ -13,7 +14,9 @@ class FullTests {
                 "return 2*3+2*2 + 4 * 4"
         ))
         val context = ExecutionContext(null)
-        tree.evaluate(context)
+        runBlocking {
+            tree.evaluate(context)
+        }
         assertEquals(26, context.getResult())
     }
 
@@ -23,7 +26,9 @@ class FullTests {
                 "return (2*3+2*2 < (0 -4) * (0 -4))"
         ))
         val context = ExecutionContext(null)
-        tree.evaluate(context)
+        runBlocking {
+            tree.evaluate(context)
+        }
         assertEquals(1, context.getResult())
     }
 
@@ -39,7 +44,9 @@ class FullTests {
                         "return t"
         ))
         val context = ExecutionContext(null)
-        tree.evaluate(context)
+        runBlocking {
+            tree.evaluate(context)
+        }
         assertEquals(4, context.getResult())
     }
 
@@ -58,7 +65,9 @@ class FullTests {
                         "return cnt\n"
         ))
         val context = ExecutionContext(null)
-        tree.evaluate(context)
+        runBlocking {
+            tree.evaluate(context)
+        }
         assertEquals(8, context.getResult())
     }
 }

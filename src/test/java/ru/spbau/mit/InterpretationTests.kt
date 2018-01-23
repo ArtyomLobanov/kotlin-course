@@ -1,5 +1,7 @@
 package ru.spbau.mit
 
+import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Test
 import ru.spbau.mit.ast.*
 import kotlin.test.assertEquals
@@ -43,7 +45,9 @@ class InterpretationTests {
                 )
         )
         val context = ExecutionContext(null)
-        tree.evaluate(context)
+        runBlocking {
+            tree.evaluate(context)
+        }
         assertEquals(5, context.getResult())
     }
 
@@ -79,7 +83,9 @@ class InterpretationTests {
         )
 
         val context = ExecutionContext(null)
-        tree.evaluate(context)
+        runBlocking {
+            tree.evaluate(context)
+        }
         assertEquals(3, context.getResult())
     }
 }
