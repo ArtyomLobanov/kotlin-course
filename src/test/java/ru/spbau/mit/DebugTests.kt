@@ -16,14 +16,15 @@ class DebugTests {
         val wrapper = PrintStream(output)
         val debugger = Debugger(wrapper)
         runBlocking {
-            debugger.run(input(
-                    """load src/test/resources/debugProgram
-                        list
-                        breakpoint 1
-                        condition 6 t > 3
-                        list
-                        remove 6
-                        list""".trimMargin()
+            debugger.run(input("""
+                load src/test/resources/debugProgram
+                list
+                breakpoint 1
+                condition 6 t > 3
+                list
+                remove 6
+                list
+                """.trimIndent()
             ))
         }
         val expected = """
@@ -37,8 +38,9 @@ class DebugTests {
             >>List of breakpoints:
                At line 1, condition: empty
 
-            >""".trimIndent()
-        assertEquals(expected, output.toString("UTF-8").trimIndent())
+            >
+            """
+        assertEquals(lines(expected), lines(output.toString("UTF-8")))
     }
 
     @Test
@@ -47,20 +49,22 @@ class DebugTests {
         val wrapper = PrintStream(output)
         val debugger = Debugger(wrapper)
         runBlocking {
-            debugger.run(input(
-                    """load src/test/resources/debugProgram
-                        breakpoint 8
-                        run
-                        evaluate 2+2
-                        continue""".trimMargin()
+            debugger.run(input("""
+                load src/test/resources/debugProgram
+                breakpoint 8
+                run
+                evaluate 2+2
+                continue
+                """.trimIndent()
             ))
         }
         val expected = """
             >Program loaded.
             >>5
             line=8,elementType=FunctionCall>=4
-            line=8,elementType=FunctionCall>line=8,elementType=Identifier>""".trimIndent()
-        assertEquals(expected, output.toString("UTF-8").trimIndent())
+            line=8,elementType=FunctionCall>line=8,elementType=Identifier>
+            """
+        assertEquals(lines(expected), lines(output.toString("UTF-8")))
     }
 
     @Test
@@ -69,19 +73,21 @@ class DebugTests {
         val wrapper = PrintStream(output)
         val debugger = Debugger(wrapper)
         runBlocking {
-            debugger.run(input(
-                    """load src/test/resources/debugProgram
-                        condition 8 t == 5
-                        condition 7 t == 7
-                        run
-                        continue""".trimMargin()
+            debugger.run(input("""
+                load src/test/resources/debugProgram
+                condition 8 t == 5
+                condition 7 t == 7
+                run
+                continue
+                """.trimIndent()
             ))
         }
         val expected = """
             >Program loaded.
             >>>5
-            line=8,elementType=FunctionCall>line=8,elementType=Identifier>""".trimIndent()
-        assertEquals(expected, output.toString("UTF-8").trimIndent())
+            line=8,elementType=FunctionCall>line=8,elementType=Identifier>
+            """
+        assertEquals(lines(expected), lines(output.toString("UTF-8")))
     }
 
     @Test
@@ -91,21 +97,28 @@ class DebugTests {
         val wrapper = PrintStream(output)
         val debugger = Debugger(wrapper)
         runBlocking {
-            debugger.run(input(
-                    """load src/test/resources/debugProgram
-                        breakpoint 8
-                        run
-                        stop""".trimMargin()
+            debugger.run(input("""
+                load src/test/resources/debugProgram
+                breakpoint 8
+                run
+                stop
+                """.trimIndent()
             ))
         }
         val expected = """
             >Program loaded.
             >>5
-            line=8,elementType=FunctionCall>>""".trimIndent()
-        assertEquals(expected, output.toString("UTF-8").trimIndent())
+            line=8,elementType=FunctionCall>>
+            """
+        assertEquals(lines(expected), lines(output.toString("UTF-8")))
     }
 
     private fun input(text: String): InputStream {
         return ByteArrayInputStream(text.toByteArray())
     }
+
+    private fun lines(text: String) = text.split('\n')
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .toList()
 }
