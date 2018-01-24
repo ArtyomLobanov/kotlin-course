@@ -1,5 +1,6 @@
 package ru.spbau.mit.ast
 
+import kotlinx.coroutines.experimental.runBlocking
 import java.io.*
 import java.util.*
 import kotlin.coroutines.experimental.*
@@ -13,11 +14,11 @@ class Debugger(private val output: PrintStream) {
     private val breakpointsConditions = HashMap<Int, Expression>()
     private val breakpointsDescriptions = HashMap<Int, String>()
 
-    suspend fun run(input: InputStream) {
+    fun run(input: InputStream) {
         val reader = BufferedReader(InputStreamReader(input))
         while (true) {
             try {
-                output.print(prefix())
+                output.print(generatePrefix())
                 val line = reader.readLine() ?: break
                 val scanner = Scanner(line)
                 if (!scanner.hasNext()) {
@@ -26,10 +27,10 @@ class Debugger(private val output: PrintStream) {
                 }
                 when (scanner.next()) {
                     "load" -> load(scanner.nextLine().trim())
-                    "breakpoint" -> breakpoint(scanner.nextInt())
-                    "condition" -> condition(scanner.nextInt(), scanner.nextLine().trim())
-                    "list" -> list()
-                    "remove" -> remove(scanner.nextInt())
+                    "breakpoint" -> addBreakpoint(scanner.nextInt())
+                    "condition" -> addBreakpointWithCondition(scanner.nextInt(), scanner.nextLine().trim())
+                    "list" -> printBreakpoints()
+                    "remove" -> removeBreakpoint(scanner.nextInt())
                     "run" -> start()
                     "evaluate" -> evaluate(scanner.nextLine())
                     "stop" -> stop()
@@ -50,14 +51,14 @@ class Debugger(private val output: PrintStream) {
         }
     }
 
-    private suspend fun load(filename: String) {
+    private fun load(filename: String) {
         root = parseFile(filename)
         breakpointsConditions.clear()
         breakpointsDescriptions.clear()
         output.println("Program loaded.")
     }
 
-    private suspend fun list() {
+    private fun printBreakpoints() {
         output.println("List of breakpoints:")
         breakpointsDescriptions.entries
                 .sortedBy { e -> e.key }
@@ -67,14 +68,14 @@ class Debugger(private val output: PrintStream) {
         output.println()
     }
 
-    private suspend fun stop() {
+    private fun stop() {
         listener = null
     }
 
-    private suspend fun resume() = listener?.continuation?.resume(Unit)
+    private fun resume() = listener?.state?.continuation?.resume(Unit)
             ?: output.println("Error: there is nothing to continue")
 
-    private suspend fun start() {
+    private fun start() {
         listener = DebugListener()
         val action: suspend () -> Unit = {
             evaluate(root!!, output, listener)
@@ -88,17 +89,16 @@ class Debugger(private val output: PrintStream) {
         })
     }
 
-    private suspend fun evaluate(code: String) = when {
-        listener != null -> {
-            val expression = parseExpression(code)
-            val result = evaluate(expression, listener!!.context!!)
-            output.println("=$result")
+    private fun evaluate(code: String) = listener?.let {
+        val expression = parseExpression(code)
+        val result = runBlocking {
+            evaluate(expression, listener!!.state!!.context)
         }
-        else -> output.println("Error: command isn't available now - run any program first")
-    }
+        output.println("=$result")
+    } ?: output.println("Error: command isn't available now - run any program first")
 
-    private suspend fun remove(line: Int) {
-        if (!breakpointsConditions.containsKey(line)) {
+    private fun removeBreakpoint(line: Int) {
+        if (line !in breakpointsConditions) {
             output.println("Warning: there is no breakpoints on line $line")
         } else {
             breakpointsConditions.remove(line)
@@ -106,44 +106,39 @@ class Debugger(private val output: PrintStream) {
         }
     }
 
-    private suspend fun breakpoint(line: Int) {
-        if (breakpointsConditions.containsKey(line)) {
+    private fun addBreakpoint(line: Int) {
+        if (line in breakpointsConditions) {
             output.println("Warning: breakpoint at line $line was overwritten")
         }
         breakpointsConditions[line] = trueConstant
         breakpointsDescriptions[line] = "empty"
     }
 
-    private suspend fun condition(line: Int, condition: String) {
+    private fun addBreakpointWithCondition(line: Int, condition: String) {
         if (condition.isEmpty()) {
             output.println("Error: condition expression is missed")
             return
         }
         val expression = parseExpression(condition)
-        if (breakpointsConditions.containsKey(line)) {
+        if (line in breakpointsConditions) {
             output.println("Warning: breakpoint at line $line was overwritten")
         }
         breakpointsConditions[line] = expression
         breakpointsDescriptions[line] = condition
     }
 
-    private fun prefix(): String = when (listener) {
-        null -> ">"
-        else -> "line=${listener?.node?.line},elementType=${listener?.node!!.javaClass.simpleName}>"
-    }
+    private fun generatePrefix(): String = listener?.let {
+        "line=${listener!!.state!!.node.line},elementType=${listener!!.state!!.node.javaClass.simpleName}>"
+    } ?: ">"
 
     private inner class DebugListener : ExecutionListener {
-        var context: ExecutionContext? = null
-        var continuation: Continuation<Unit>? = null
-        var node: ASTNode? = null
+        var state: ExecutionState? = null
 
         override suspend fun visitNode(node: ASTNode, context: ExecutionContext) {
             val condition = breakpointsConditions[node.line] ?: return
             if (evaluate(condition, context) == 0) return
             suspendCoroutine<Unit> { continuation ->
-                this.context = context
-                this.continuation = continuation
-                this.node = node
+                state = ExecutionState(context, continuation, node)
             }
         }
 
@@ -151,4 +146,10 @@ class Debugger(private val output: PrintStream) {
             listener = null
         }
     }
+
+    private data class ExecutionState(
+            val context: ExecutionContext,
+            val continuation: Continuation<Unit>,
+            val node: ASTNode
+    )
 }
