@@ -36,6 +36,7 @@ dependencies {
     testCompile "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
     compile "org.antlr:antlr4-runtime:4.7"
     antlr "org.antlr:antlr4:4.7"
+    compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: '0.20'
 }
 
 compileKotlin {
@@ -43,4 +44,10 @@ compileKotlin {
 }
 compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
+}
+
+kotlin {
+    experimental {
+        coroutines "enable"
+    }
 }

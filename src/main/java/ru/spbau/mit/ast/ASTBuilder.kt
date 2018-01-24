@@ -1,5 +1,3 @@
-@file:Suppress("MemberVisibilityCanPrivate")
-
 package ru.spbau.mit.ast
 
 import org.antlr.v4.runtime.BufferedTokenStream

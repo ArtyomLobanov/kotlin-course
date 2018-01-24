@@ -1,0 +1,8 @@
+var t = 5
+
+fun foo(x) {
+    print(x * x)
+}
+
+print(t)
+foo(t)
